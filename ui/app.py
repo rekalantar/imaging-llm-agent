@@ -58,13 +58,31 @@ with col2:
                         data = r.json()
                         st.success("Analysis Complete")
                         
+                        # Show the user's original request
+                        st.markdown("### User Request")
+                        st.info(text)
+
                         if isinstance(data, dict):
-                            for key, value in data.items():
-                                st.markdown(f"### {key.replace('_', ' ').title()}")
-                                if isinstance(value, str):
-                                    st.markdown(value)
+                            # Identify thinking/reasoning fields vs final output
+                            thinking_keys = [k for k in data.keys() if any(x in k.lower() for x in ['thought', 'reasoning', 'plan'])]
+                            output_keys = [k for k in data.keys() if k not in thinking_keys]
+
+                            # Show thinking process in an expander
+                            if thinking_keys:
+                                with st.expander("🧠 Agent Thinking Process"):
+                                    for key in thinking_keys:
+                                        st.markdown(f"**{key.replace('_', ' ').title()}:**")
+                                        st.write(data[key])
+
+                            # Show final output
+                            for key in output_keys:
+                                st.markdown(f"### {key.title()}")
+                                
+                                val = data[key]
+                                if isinstance(val, str):
+                                    st.markdown(val)
                                 else:
-                                    st.write(value)
+                                    st.write(val)
                         else:
                             st.write(data)
 
