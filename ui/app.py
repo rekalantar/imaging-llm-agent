@@ -57,7 +57,17 @@ with col2:
                     try:
                         data = r.json()
                         st.success("Analysis Complete")
-                        st.json(data) # Use st.json for better interactive viewing
+                        
+                        if isinstance(data, dict):
+                            for key, value in data.items():
+                                st.markdown(f"### {key.replace('_', ' ').title()}")
+                                if isinstance(value, str):
+                                    st.markdown(value)
+                                else:
+                                    st.write(value)
+                        else:
+                            st.write(data)
+
                     except json.JSONDecodeError:
                         st.error("Response was not valid JSON. Showing raw body:")
                         st.code(r.text or "<empty body>")
