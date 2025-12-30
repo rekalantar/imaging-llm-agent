@@ -15,7 +15,7 @@ JSON format:
 }
 
 Allowed tools (tool field must be exactly one of):
-- "segment_oars"  args: {"image_path": "...", "output_path": "..."}
+- "segment_oars"  args: {"image_path": "...", "output_dir": "...", "organs": ["..."]}
 - "register_rigid"  args: {"fixed_path": "...", "moving_path": "...", "output_dir": "..."}
 - "register_deformable"  args: {"fixed_path": "...", "moving_path": "...", "output_dir": "..."}
 
