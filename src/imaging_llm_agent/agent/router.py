@@ -1,25 +1,41 @@
 from __future__ import annotations
 import json
-import logging
+import re
 from .schema import Plan
 from .llm_client import load_llm_config, make_openai_client
 
-logger = logging.getLogger(__name__)
-
 SYSTEM_PROMPT = """You are an imaging workflow router.
 
-Return ONLY valid JSON matching this schema:
-{ "calls": [ {"tool": "...", "args": {...}} ], "notes": "..." }
+Return ONLY valid JSON and commentary.
 
-Tools:
-- segment_oars(image_path, organs, output_dir)
-- register_ants_rigid(fixed_path, moving_path, output_dir)
+JSON format:
+{
+  "calls": [{"tool": "...", "args": {...}}],
+  "notes": "..."
+}
+
+Allowed tools (tool field must be exactly one of):
+- "segment_oars"  args: {"image_path": "...", "output_path": "..."}
+- "register_rigid"  args: {"fixed_path": "...", "moving_path": "...", "output_dir": "..."}
+- "register_deformable"  args: {"fixed_path": "...", "moving_path": "...", "output_dir": "..."}
 
 Rules:
-- If required paths are missing, return {"calls": [], "notes": "...missing..."}.
+- If required paths are missing: return {"calls": [], "notes": "Missing ..."}.
 - Never invent file paths.
-- Prefer segment_oars when multiple organs are requested.
+- Prefer segment_oars when multiple organs requested.
 """
+
+def _extract_json(text: str) -> str:
+    # Prefer whole-string JSON
+    t = text.strip()
+    if t.startswith("{") and t.endswith("}"):
+        return t
+
+    # Fallback: extract first {...} block
+    m = re.search(r"\{.*\}", t, flags=re.DOTALL)
+    if not m:
+        raise ValueError(f"LLM did not return JSON. Got: {text[:2000]}")
+    return m.group(0)
 
 def make_plan(user_text: str) -> Plan:
     cfg = load_llm_config()
@@ -32,8 +48,11 @@ def make_plan(user_text: str) -> Plan:
             {"role": "user", "content": user_text},
         ],
         temperature=0.0,
-        response_format={"type": "json_object"},
+        # IMPORTANT: LM Studio seems picky about response_format;
+        # use plain text mode and validate ourselves.
+        response_format={"type": "text"},
     )
+
     content = resp.choices[0].message.content
-    plan_dict = json.loads(content)
-    return Plan.model_validate(plan_dict)
+    json_str = _extract_json(content)
+    return Plan.model_validate(json.loads(json_str))
